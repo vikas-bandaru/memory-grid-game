@@ -53,10 +53,14 @@ body:not(.game-live) #controls button:not(#startBtn) {
 }
 
     #levelMessage {
-        margin-top: 12px;
+        margin-top: 14px;
         font-size: 18px;
         min-height: 24px;
         text-align: center;
+        width: 100%;
+        max-width: 640px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     #stats {
@@ -195,6 +199,97 @@ body:not(.game-live) #controls button:not(#startBtn) {
     #restartBtn:hover {
         background: #1e874b;
     }
+    #doorOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+    #doorOverlay.active {
+        display: flex;
+    }
+    #doorOverlay .door-panel {
+        background: #1f1f1f;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        max-width: 320px;
+        width: 100%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    #doorOverlay .door-panel p {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        line-height: 1.5;
+    }
+    #doorOverlay .door-panel button {
+        padding: 10px 16px;
+        border: none;
+        border-radius: 8px;
+        background: #f1c40f;
+        color: #000;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+    }
+#messageOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.78);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        padding: 16px;
+    }
+#messageOverlay.active {
+        display: flex;
+    }
+#messageOverlay .message-panel {
+    background: #1f1f1f;
+    border: 1px solid rgba(241, 196, 15, 0.4);
+    border-radius: 14px;
+    padding: 24px;
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+    }
+#messageOverlay .message-panel p {
+    margin: 0 0 18px 0;
+    font-size: 18px;
+    line-height: 1.5;
+}
+#messageOverlay .message-panel h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 20px;
+}
+#messageOverlay .stats-lines p {
+    margin: 6px 0;
+    font-size: 16px;
+}
+#messageOverlay .message-panel button {
+    width: 100%;
+        padding: 10px 14px;
+        border: none;
+        border-radius: 8px;
+        background: #f1c40f;
+        color: #000;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+    }
     #recruiterOverlay {
         position: fixed;
         top: 0;
@@ -317,6 +412,21 @@ body:not(.game-live) #controls button:not(#startBtn) {
             font-size: 14px;
             padding: 8px 10px;
         }
+        #messageOverlay .message-panel {
+            padding: 18px;
+        }
+        #messageOverlay .message-panel p {
+            font-size: 16px;
+        }
+        #messageOverlay .message-panel button {
+            font-size: 15px;
+        }
+        #doorOverlay .door-panel {
+            padding: 16px;
+        }
+        #doorOverlay .door-panel p {
+            font-size: 16px;
+        }
         body[data-grid-size="5"] #controls button {
             font-size: 15px;
             padding: 10px 14px;
@@ -402,7 +512,7 @@ body:not(.game-live) #controls button:not(#startBtn) {
     <button id="harderBtn" onclick="makeGridHarder()">Next Level</button>
 </div>
 
-<div id="levelMessage">Press Start Game to begin.</div>
+<div id="levelMessage" role="status" aria-live="polite">Press Start Game to begin.</div>
 
 <div id="stats">
     🔢 Level: <span id="levelDisplay">1 / 5</span>  
@@ -436,6 +546,20 @@ body:not(.game-live) #controls button:not(#startBtn) {
 </div>
 
 <button id="restartBtn" onclick="restartGame()">Restart Game</button>
+
+<div id="messageOverlay" aria-live="assertive">
+    <div class="message-panel">
+        <p id="overlayMessageText"></p>
+        <button type="button" onclick="hideMessageOverlay()">Continue</button>
+    </div>
+</div>
+
+<div id="doorOverlay" aria-live="assertive">
+    <div class="door-panel">
+        <p id="doorOverlayText"></p>
+        <button type="button" onclick="hideDoorOverlay()">Continue</button>
+    </div>
+</div>
 
 <div id="recruiterOverlay">
     <div id="recruiterPanel">
@@ -520,7 +644,70 @@ function updateKeyStatus() {
 }
 
 function showMessage(msg) {
-    document.getElementById("levelMessage").textContent = msg;
+    const messageEl = document.getElementById("levelMessage");
+    messageEl.textContent = msg;
+}
+
+
+function showDoorOverlay(message) {
+    const overlay = document.getElementById("doorOverlay");
+    const text = document.getElementById("doorOverlayText");
+    if (text) {
+        text.textContent = message || "🚪 The door is locked! Grab the key first.";
+    }
+    if (overlay) {
+        overlay.classList.add("active");
+    }
+}
+
+function hideDoorOverlay() {
+    const overlay = document.getElementById("doorOverlay");
+    if (overlay) {
+        overlay.classList.remove("active");
+    }
+}
+
+function hideMessageOverlay() {
+    const overlay = document.getElementById("messageOverlay");
+    if (overlay) {
+        overlay.classList.remove("active");
+        const panel = overlay.querySelector(".message-panel");
+        if (panel) {
+            panel.innerHTML = `<p id="overlayMessageText"></p>
+                <button type="button" onclick="hideMessageOverlay()">Continue</button>`;
+        }
+    }
+}
+
+function showStatsOverlay(title, lines, finalRun = false) {
+    const overlay = document.getElementById("messageOverlay");
+    if (!overlay) return;
+    const panel = overlay.querySelector(".message-panel");
+    if (!panel) return;
+    panel.innerHTML = "";
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    panel.appendChild(heading);
+    const list = document.createElement("div");
+    list.className = "stats-lines";
+    lines.forEach(text => {
+        const p = document.createElement("p");
+        p.textContent = text;
+        list.appendChild(p);
+    });
+    panel.appendChild(list);
+    const button = document.createElement("button");
+    button.textContent = finalRun ? "Restart Game" : "Continue";
+    button.onclick = () => {
+        hideMessageOverlay();
+        if (finalRun) {
+            restartGame(true);
+        } else {
+            applyPendingLevelAction();
+        }
+    };
+    panel.appendChild(button);
+    overlay.classList.add("active");
 }
 
 function updateLayoutState() {
@@ -580,6 +767,8 @@ function resetIdleUI(message = "Press Start Game to begin.") {
     const grid = document.getElementById("grid");
     if (grid) grid.innerHTML = "";
     hideRecruiterInsights(false);
+    hideDoorOverlay();
+    hideMessageOverlay();
 }
 
 function updateResponsiveCellSize() {
@@ -632,6 +821,16 @@ function logWinEvent(event) {
 
 // Generate a random safe path
 function generatePath() {
+    let candidate;
+    let guard = 0;
+    do {
+        candidate = buildPathCandidate();
+        guard++;
+    } while (!pathHasMultipleTurns(candidate) && guard < 50);
+    return candidate;
+}
+
+function buildPathCandidate() {
     let r = start.r;
     let c = start.c;
     let p = [{ r, c }];
@@ -655,22 +854,43 @@ function generatePath() {
     return p;
 }
 
+function pathHasMultipleTurns(path) {
+    if (!path || path.length < 4) return false;
+    let prevDir = null;
+    let turns = 0;
+    for (let i = 1; i < path.length; i++) {
+        const dir = directionBetween(path[i - 1], path[i]);
+        if (!dir) continue;
+        if (prevDir && dir !== prevDir) {
+            turns++;
+            if (turns >= 2) return true;
+        }
+        prevDir = dir;
+    }
+    return false;
+}
+
+function directionBetween(a, b) {
+    if (b.r > a.r) return "down";
+    if (b.r < a.r) return "up";
+    if (b.c > a.c) return "right";
+    if (b.c < a.c) return "left";
+    return null;
+}
+
 function placeKey() {
     if (path.length <= 2) {
         keyCell = null;
         return;
     }
     const middleCells = path.slice(1, path.length - 1);
-    let candidates = middleCells;
-    if (gridSize > 6) {
-        candidates = middleCells.filter(cell => {
-            const nearStart = manhattanDistance(cell, start) <= 1;
-            const nearEnd = manhattanDistance(cell, end) <= 1;
-            return !(nearStart || nearEnd);
-        });
-        if (!candidates.length) {
-            candidates = middleCells;
-        }
+    let candidates = middleCells.filter(cell => {
+        const nearStart = manhattanDistance(cell, start) <= 1;
+        const nearEnd = manhattanDistance(cell, end) <= 1;
+        return !(nearStart || nearEnd);
+    });
+    if (!candidates.length) {
+        candidates = middleCells;
     }
     keyCell = candidates[Math.floor(Math.random() * candidates.length)];
 }
@@ -770,6 +990,7 @@ function cellClicked(r, c, cell) {
     if (keyCell && r === keyCell.r && c === keyCell.c && !hasKey) {
         hasKey = true;
         updateKeyStatus();
+        showDoorOverlay("🔑 Key collected! Find the door.");
         showMessage("Key collected! Find the door.");
         cell.classList.remove("safe");
         cell.classList.add("key");
@@ -779,8 +1000,8 @@ function cellClicked(r, c, cell) {
 
     if (r === end.r && c === end.c) {
         if (!hasKey) {
+            showDoorOverlay("🚪 The door is locked! Grab the key first.");
             showMessage("The door is locked! Grab the key first.");
-            createGrid();
             return;
         }
         stopTimer();
@@ -947,22 +1168,30 @@ function manhattanDistance(a, b) {
 }
 
 function randomizeStartEnd() {
-    // Generate unique random positions with minimum distance
+    // Generate unique random positions with sufficient spacing
     start = randomCell();
 
     do {
         end = randomCell();
-    } while (
-        (start.r === end.r && start.c === end.c) ||
-        distanceBetween(start, end) < MIN_START_END_DISTANCE ||
-        (difficulty === "hard" && (start.r === end.r || start.c === end.c))
-    );
+    } while (shouldRepositionStartEnd(start, end));
 }   
+
+function shouldRepositionStartEnd(a, b) {
+    if (a.r === b.r && a.c === b.c) return true;
+    const rowGap = Math.abs(a.r - b.r);
+    const colGap = Math.abs(a.c - b.c);
+    const tooClose = distanceBetween(a, b) < MIN_START_END_DISTANCE;
+    const insufficientRowGap = rowGap < 2;
+    const insufficientColGap = colGap < 2;
+    const straightLine = (a.r === b.r) || (a.c === b.c);
+    return tooClose || insufficientRowGap || insufficientColGap || straightLine;
+}
 
 function levelComplete() {
     const levelNumber = currentLevelIndex + 1;
     levelsWon = Math.min(levelsWon + 1, TOTAL_LEVELS);
     analytics.endedAt = performance.now();
+    hideDoorOverlay();
 
     const winSnapshot = {
         time: analytics.endedAt,
@@ -982,19 +1211,26 @@ function levelComplete() {
     });
     showRecruiterInsights(insights);
 
-    alert(`🎉 Level ${levelNumber} cleared!\nTime: ${timer}s\nResets: ${resets}\nMoves: ${moves}\nCompleted: ${levelsWon}/${TOTAL_LEVELS}`);
+    const stats = [
+        `Time: ${timer}s`,
+        `Resets: ${resets}`,
+        `Moves: ${moves}`,
+        `Levels completed: ${levelsWon}/${TOTAL_LEVELS}`
+    ];
 
     if (levelsWon >= TOTAL_LEVELS) {
-        alert("🏆 All five levels complete! Restarting from level 1.");
-        pendingLevelAction = "restartAuto";
+        showStatsOverlay("🏆 All five levels complete!", stats, true);
+        pendingLevelAction = null;
         return;
     }
 
     if (currentLevelIndex < TOTAL_LEVELS - 1) {
+        showStatsOverlay(`🎉 Level ${levelNumber} cleared!`, stats);
         pendingLevelAction = "advance";
     } else {
         const remaining = TOTAL_LEVELS - levelsWon;
-        alert(`You cleared the final stage but still need ${remaining} more level${remaining === 1 ? "" : "s"} to finish all five. Restarting so you can complete them.`);
+        stats.push(`Still ${remaining} level${remaining === 1 ? "" : "s"} to finish all five.`);
+        showStatsOverlay("Final level cleared!", stats);
         pendingLevelAction = "restartAuto";
     }
 }
