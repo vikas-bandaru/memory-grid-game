@@ -28,6 +28,12 @@
         outline: 2px solid #f1c40f;
     }
 
+    #levelMessage {
+        margin-top: 10px;
+        font-size: 16px;
+        min-height: 24px;
+    }
+
     #grid {
         display: grid;
         grid-template-columns: repeat(7, 50px);
@@ -50,7 +56,8 @@
     .safe { background: #2ecc71 !important; }
     .wall { background: #e74c3c !important; }
     .start { background: #3498db !important; }
-    .end { background: #f1c40f !important; color: black; }
+    .door { background: #f1c40f !important; color: black; }
+    .key { background: #9b59b6 !important; }
 
     #stats {
         margin-top: 15px;
@@ -74,13 +81,17 @@
 <div id="controls">
     <button id="easyBtn" onclick="setDifficulty('easy')">Easy</button>
     <button id="hardBtn" onclick="setDifficulty('hard')">Hard (Hiring Style)</button>
-    <button id="harderBtn" onclick="makeGridHarder()">Harder</button>
+    <button id="harderBtn" onclick="makeGridHarder()">Next Level</button>
 </div>
 
+<div id="levelMessage">Collect the key before heading to the door.</div>
+
 <div id="stats">
-    ⏱ Time: <span id="timer">0</span>s  
+    🔢 Level: <span id="levelDisplay">1 / 5</span>  
+    | ⏱ Time: <span id="timer">0</span>s  
     | 🔄 Resets: <span id="resets">0</span>  
-    | 🦶 Moves: <span id="moves">0</span>
+    | 🦶 Moves: <span id="moves">0</span>  
+    | 🔑 Key: <span id="keyStatus">No</span>
 </div>
 
 <div id="grid"></div>
@@ -88,10 +99,12 @@
 <button id="restartBtn" onclick="restartGame()">Restart Game</button>
 
 <script>
-const DEFAULT_GRID_SIZE = 7;
-let gridSize = DEFAULT_GRID_SIZE;
+const LEVELS = [5, 6, 7, 8, 9];
+const TOTAL_LEVELS = LEVELS.length;
+let currentLevelIndex = 0;
+let gridSize = LEVELS[currentLevelIndex];
 let start = { r: 0, c: 0 };
-let end = { r: DEFAULT_GRID_SIZE - 1, c: DEFAULT_GRID_SIZE - 1 };
+let end = { r: gridSize - 1, c: gridSize - 1 };
 let path = [];
 let revealed = [];
 let resets = 0;
@@ -100,6 +113,8 @@ let timer = 0;
 let timerInterval = null;
 let difficulty = "hard"; // default to harder, hiring-style
 const MIN_START_END_DISTANCE = 4; // keep S and E apart for better gameplay
+let keyCell = null;
+let hasKey = false;
 
 // Update difficulty UI
 function updateDifficultyButtons() {
@@ -119,6 +134,18 @@ function initRevealed() {
     revealed = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
     revealed[start.r][start.c] = true; // Start always visible
     // End will be shown as E but not marked safe until clicked correctly
+}
+
+function updateLevelDisplay() {
+    document.getElementById("levelDisplay").textContent = `${currentLevelIndex + 1} / ${TOTAL_LEVELS}`;
+}
+
+function updateKeyStatus() {
+    document.getElementById("keyStatus").textContent = hasKey ? "Yes" : "No";
+}
+
+function showMessage(msg) {
+    document.getElementById("levelMessage").textContent = msg;
 }
 
 // Generate a random safe path
@@ -146,6 +173,15 @@ function generatePath() {
     return p;
 }
 
+function placeKey() {
+    if (path.length <= 2) {
+        keyCell = null;
+        return;
+    }
+    const keyIndex = Math.floor(Math.random() * (path.length - 2)) + 1; // exclude start/end
+    keyCell = path[keyIndex];
+}
+
 // Build the grid UI
 function createGrid() {
     const grid = document.getElementById("grid");
@@ -163,8 +199,16 @@ function createGrid() {
                 div.classList.add("start");
             } 
             else if (r === end.r && c === end.c) {
-                div.textContent = "E";
-                div.classList.add("end");
+                div.textContent = "D";
+                div.classList.add("door");
+            }
+            else if (keyCell && r === keyCell.r && c === keyCell.c) {
+                if (revealed[r][c]) {
+                    div.classList.add("key");
+                    div.textContent = "K";
+                } else {
+                    div.textContent = "?";
+                }
             }
             else if (revealed[r][c]) {
                 // EASY mode: keep showing discovered safes
@@ -208,9 +252,22 @@ function cellClicked(r, c, cell) {
     cell.classList.add("safe");
     cell.textContent = "";
 
+    if (keyCell && r === keyCell.r && c === keyCell.c && !hasKey) {
+        hasKey = true;
+        updateKeyStatus();
+        showMessage("Key collected! Find the door.");
+        createGrid();
+        return;
+    }
+
     if (r === end.r && c === end.c) {
+        if (!hasKey) {
+            showMessage("The door is locked! Grab the key first.");
+            createGrid();
+            return;
+        }
         clearInterval(timerInterval);
-        alert("🎉 YOU WIN!\nTime: " + timer + "s\nResets: " + resets + "\nMoves: " + moves);
+        levelComplete();
     }
 }
 
@@ -221,6 +278,9 @@ function resetAfterMistake() {
     moves = 0;
     document.getElementById("moves").textContent = moves;
 
+    hasKey = false;
+    updateKeyStatus();
+
     if (difficulty === "easy") {
         // Keep known safes visible
         createGrid();
@@ -229,16 +289,23 @@ function resetAfterMistake() {
         initRevealed();
         createGrid();
     }
+    showMessage("Ouch! Try again from the start.");
 }
 
 // Restart everything
 function initializeGameState() {
+    const levelSize = LEVELS[currentLevelIndex];
+    gridSize = levelSize;
     resets = 0;
     moves = 0;
     timer = 0;
+    hasKey = false;
     document.getElementById("resets").textContent = resets;
     document.getElementById("moves").textContent = moves;
     document.getElementById("timer").textContent = timer;
+    updateKeyStatus();
+    updateLevelDisplay();
+    showMessage("Collect the key before heading to the door.");
 
     clearInterval(timerInterval);
     startTimer();
@@ -247,17 +314,22 @@ function initializeGameState() {
 
     initRevealed();
     path = generatePath();
+    placeKey();
     createGrid();
 }
 
 function restartGame() {
-    gridSize = DEFAULT_GRID_SIZE;
+    currentLevelIndex = 0;
     initializeGameState();
 }
 
 function makeGridHarder() {
-    gridSize++;
-    initializeGameState();
+    if (currentLevelIndex < TOTAL_LEVELS - 1) {
+        currentLevelIndex++;
+        initializeGameState();
+    } else {
+        showMessage("You're already on the final level!");
+    }
 }
 
 // Timer
@@ -292,6 +364,19 @@ function randomizeStartEnd() {
         distanceBetween(start, end) < MIN_START_END_DISTANCE
     );
 }   
+
+function levelComplete() {
+    const levelNumber = currentLevelIndex + 1;
+    alert(`🎉 Level ${levelNumber} cleared!\nTime: ${timer}s\nResets: ${resets}\nMoves: ${moves}`);
+
+    if (currentLevelIndex < TOTAL_LEVELS - 1) {
+        currentLevelIndex++;
+        initializeGameState();
+    } else {
+        alert("🏆 All five levels complete! Restarting from level 1.");
+        restartGame();
+    }
+}
 
 // Init on load
 updateDifficultyButtons();
