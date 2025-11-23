@@ -767,7 +767,8 @@ function randomizeStartEnd() {
         end = randomCell();
     } while (
         (start.r === end.r && start.c === end.c) ||
-        distanceBetween(start, end) < MIN_START_END_DISTANCE
+        distanceBetween(start, end) < MIN_START_END_DISTANCE ||
+        (difficulty === "hard" && (start.r === end.r || start.c === end.c))
     );
 }   
 
