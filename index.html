@@ -34,6 +34,21 @@
         min-height: 24px;
     }
 
+    #instructions {
+        margin-top: 15px;
+        font-size: 15px;
+        max-width: 420px;
+        line-height: 1.4;
+        text-align: left;
+    }
+    #instructions ul {
+        margin: 6px 0 0 16px;
+        padding: 0;
+    }
+    #instructions li {
+        margin-bottom: 4px;
+    }
+
     #grid {
         display: grid;
         grid-template-columns: repeat(7, 50px);
@@ -94,6 +109,16 @@
     | 🔑 Key: <span id="keyStatus">No</span>
 </div>
 
+<div id="instructions">
+    <strong>How to play:</strong>
+    <ul>
+        <li>Tap tiles to trace the hidden safe path from <strong>S</strong> to the door.</li>
+        <li>The door stays locked until you uncover the hidden <strong>key</strong>.</li>
+        <li>A wrong tile resets the board (hard mode hides your progress).</li>
+        <li>Use Restart to start over or Next Level to skip ahead—only wins count toward finishing all five levels.</li>
+    </ul>
+</div>
+
 <div id="grid"></div>
 
 <button id="restartBtn" onclick="restartGame()">Restart Game</button>
@@ -115,6 +140,8 @@ let difficulty = "hard"; // default to harder, hiring-style
 const MIN_START_END_DISTANCE = 4; // keep S and E apart for better gameplay
 let keyCell = null;
 let hasKey = false;
+let pendingResetTimeout = null;
+let levelsWon = 0;
 
 // Update difficulty UI
 function updateDifficultyButtons() {
@@ -124,9 +151,10 @@ function updateDifficultyButtons() {
 
 // Called from buttons
 function setDifficulty(level) {
+    if (difficulty === level) return;
     difficulty = level;
     updateDifficultyButtons();
-    restartGame();
+    initializeGameState();
 }
 
 // Initialize revealed grid
@@ -241,7 +269,7 @@ function cellClicked(r, c, cell) {
 
     if (!isSafe) {
         cell.classList.add("wall");
-        setTimeout(resetAfterMistake, 400);
+        scheduleResetAfterMistake();
         return;
     }
 
@@ -266,7 +294,7 @@ function cellClicked(r, c, cell) {
             createGrid();
             return;
         }
-        clearInterval(timerInterval);
+        stopTimer();
         levelComplete();
     }
 }
@@ -292,8 +320,24 @@ function resetAfterMistake() {
     showMessage("Ouch! Try again from the start.");
 }
 
+function scheduleResetAfterMistake() {
+    cancelPendingReset();
+    pendingResetTimeout = setTimeout(() => {
+        pendingResetTimeout = null;
+        resetAfterMistake();
+    }, 400);
+}
+
+function cancelPendingReset() {
+    if (pendingResetTimeout !== null) {
+        clearTimeout(pendingResetTimeout);
+        pendingResetTimeout = null;
+    }
+}
+
 // Restart everything
 function initializeGameState() {
+    cancelPendingReset();
     const levelSize = LEVELS[currentLevelIndex];
     gridSize = levelSize;
     resets = 0;
@@ -307,7 +351,6 @@ function initializeGameState() {
     updateLevelDisplay();
     showMessage("Collect the key before heading to the door.");
 
-    clearInterval(timerInterval);
     startTimer();
 
     randomizeStartEnd();
@@ -320,6 +363,7 @@ function initializeGameState() {
 
 function restartGame() {
     currentLevelIndex = 0;
+    levelsWon = 0;
     initializeGameState();
 }
 
@@ -334,10 +378,18 @@ function makeGridHarder() {
 
 // Timer
 function startTimer() {
+    stopTimer();
     timerInterval = setInterval(() => {
         timer++;
         document.getElementById("timer").textContent = timer;
     }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval !== null) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
 }
 
 function randomCell() {
@@ -367,13 +419,21 @@ function randomizeStartEnd() {
 
 function levelComplete() {
     const levelNumber = currentLevelIndex + 1;
-    alert(`🎉 Level ${levelNumber} cleared!\nTime: ${timer}s\nResets: ${resets}\nMoves: ${moves}`);
+    levelsWon = Math.min(levelsWon + 1, TOTAL_LEVELS);
+    alert(`🎉 Level ${levelNumber} cleared!\nTime: ${timer}s\nResets: ${resets}\nMoves: ${moves}\nCompleted: ${levelsWon}/${TOTAL_LEVELS}`);
+
+    if (levelsWon >= TOTAL_LEVELS) {
+        alert("🏆 All five levels complete! Restarting from level 1.");
+        restartGame();
+        return;
+    }
 
     if (currentLevelIndex < TOTAL_LEVELS - 1) {
         currentLevelIndex++;
         initializeGameState();
     } else {
-        alert("🏆 All five levels complete! Restarting from level 1.");
+        const remaining = TOTAL_LEVELS - levelsWon;
+        alert(`You cleared the final stage but still need ${remaining} more level${remaining === 1 ? "" : "s"} to finish all five. Restarting so you can complete them.`);
         restartGame();
     }
 }
