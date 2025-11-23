@@ -113,6 +113,80 @@
         cursor: pointer;
         border: none;
     }
+    #recruiterOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 999;
+    }
+    #recruiterOverlay.active {
+        display: flex;
+    }
+    #recruiterPanel {
+        background: #1c1c1c;
+        border-radius: 12px;
+        padding: 20px 24px;
+        max-width: 520px;
+        width: 100%;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        position: relative;
+    }
+    #recruiterPanel h2 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 20px;
+        text-align: left;
+    }
+    #recruiterTags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .recruiter-tag {
+        background: #2c3e50;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    #recruiterSummary {
+        margin: 0;
+        padding-left: 18px;
+        line-height: 1.4;
+    }
+    #closeRecruiterBtn {
+        margin-top: 16px;
+        width: 100%;
+        padding: 10px 14px;
+        border: none;
+        border-radius: 8px;
+        background: #3498db;
+        color: white;
+        cursor: pointer;
+        font-size: 15px;
+    }
+    #closeRecruiterBtn:hover {
+        background: #2980b9;
+    }
+    #recruiterPanel .close-icon {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 20px;
+        color: #fff;
+        cursor: pointer;
+    }
 
     @media (max-width: 540px) {
         body {
@@ -195,6 +269,16 @@
 
 <button id="restartBtn" onclick="restartGame()">Restart Game</button>
 
+<div id="recruiterOverlay">
+    <div id="recruiterPanel">
+        <button class="close-icon" aria-label="Close insights" onclick="hideRecruiterInsights()">×</button>
+        <h2>Recruiter View: Behavioural Insights</h2>
+        <div id="recruiterTags"></div>
+        <ul id="recruiterSummary"></ul>
+        <button id="closeRecruiterBtn" onclick="hideRecruiterInsights()">Close</button>
+    </div>
+</div>
+
 <script>
 const LEVELS = [5, 6, 7, 8, 9];
 const TOTAL_LEVELS = LEVELS.length;
@@ -216,6 +300,20 @@ let hasKey = false;
 let pendingResetTimeout = null;
 let levelsWon = 0;
 let gameActive = false;
+let currentAttempt = 1;
+let pendingLevelAction = null;
+
+const analytics = {
+    sessionId: Date.now(),
+    difficulty: null,
+    levelId: null,
+    moves: [],
+    resets: [],
+    wins: [],
+    startedAt: null,
+    endedAt: null,
+    levelHistory: []
+};
 
 // Update difficulty UI
 function updateDifficultyButtons() {
@@ -270,6 +368,28 @@ function updateResponsiveCellSize() {
     document.documentElement.style.setProperty("--cell-size", `${cellSize}px`);
     document.documentElement.style.setProperty("--grid-gap", `${GRID_GAP}px`);
     gridElement.style.width = `${gridWidth}px`;
+}
+
+function resetAnalyticsForLevel() {
+    analytics.difficulty = difficulty;
+    analytics.levelId = `Level-${currentLevelIndex + 1}`;
+    analytics.moves = [];
+    analytics.resets = [];
+    analytics.startedAt = performance.now();
+    analytics.endedAt = null;
+    currentAttempt = 1;
+}
+
+function logMoveEvent(event) {
+    analytics.moves.push(event);
+}
+
+function logResetEvent(event) {
+    analytics.resets.push(event);
+}
+
+function logWinEvent(event) {
+    analytics.wins.push(event);
 }
 
 // Generate a random safe path
@@ -368,9 +488,22 @@ function cellClicked(r, c, cell) {
     moves++;
     document.getElementById("moves").textContent = moves;
 
-    if (r === start.r && c === start.c) return;
-
+    const isStartCell = (r === start.r && c === start.c);
+    const isEndCell = (r === end.r && c === end.c);
     let isSafe = path.some(p => p.r === r && p.c === c);
+
+    logMoveEvent({
+        time: performance.now(),
+        row: r,
+        col: c,
+        result: isSafe ? "safe" : "wall",
+        isStart: isStartCell,
+        isEnd: isEndCell,
+        moveNumber: moves,
+        attemptNumber: currentAttempt
+    });
+
+    if (isStartCell) return;
 
     if (!isSafe) {
         cell.classList.add("wall");
@@ -407,6 +540,7 @@ function cellClicked(r, c, cell) {
 // When user hits a wall
 function resetAfterMistake() {
     if (!gameActive) return;
+    const movesBeforeReset = moves;
     resets++;
     document.getElementById("resets").textContent = resets;
     moves = 0;
@@ -414,6 +548,13 @@ function resetAfterMistake() {
 
     hasKey = false;
     updateKeyStatus();
+
+    logResetEvent({
+        time: performance.now(),
+        attemptNumber: currentAttempt,
+        movesBeforeReset
+    });
+    currentAttempt++;
 
     if (difficulty === "easy") {
         // Keep known safes visible
@@ -445,6 +586,7 @@ function cancelPendingReset() {
 function initializeGameState() {
     if (!gameActive) return;
     cancelPendingReset();
+    hideRecruiterInsights(false);
     const levelSize = LEVELS[currentLevelIndex];
     gridSize = levelSize;
     resets = 0;
@@ -457,6 +599,8 @@ function initializeGameState() {
     updateKeyStatus();
     updateLevelDisplay();
     showMessage("Collect the key before heading to the door.");
+
+    resetAnalyticsForLevel();
 
     startTimer();
 
@@ -476,6 +620,7 @@ function restartGame(forceStart = false) {
     if (forceStart) {
         gameActive = true;
     }
+    pendingLevelAction = null;
     currentLevelIndex = 0;
     levelsWon = 0;
     initializeGameState();
@@ -543,20 +688,319 @@ function randomizeStartEnd() {
 function levelComplete() {
     const levelNumber = currentLevelIndex + 1;
     levelsWon = Math.min(levelsWon + 1, TOTAL_LEVELS);
+    analytics.endedAt = performance.now();
+
+    const winSnapshot = {
+        time: analytics.endedAt,
+        levelId: analytics.levelId,
+        totalTime: timer,
+        totalMoves: analytics.moves.length,
+        totalResets: analytics.resets.length,
+        attemptsUsed: currentAttempt,
+        difficulty: analytics.difficulty
+    };
+    logWinEvent(winSnapshot);
+
+    const insights = computeRecruiterInsights();
+    analytics.levelHistory.push({
+        levelId: analytics.levelId,
+        insights
+    });
+    showRecruiterInsights(insights);
+
     alert(`🎉 Level ${levelNumber} cleared!\nTime: ${timer}s\nResets: ${resets}\nMoves: ${moves}\nCompleted: ${levelsWon}/${TOTAL_LEVELS}`);
 
     if (levelsWon >= TOTAL_LEVELS) {
         alert("🏆 All five levels complete! Restarting from level 1.");
-        restartGame();
+        pendingLevelAction = "restart";
         return;
     }
 
     if (currentLevelIndex < TOTAL_LEVELS - 1) {
-        currentLevelIndex++;
-        initializeGameState();
+        pendingLevelAction = "advance";
     } else {
         const remaining = TOTAL_LEVELS - levelsWon;
         alert(`You cleared the final stage but still need ${remaining} more level${remaining === 1 ? "" : "s"} to finish all five. Restarting so you can complete them.`);
+        pendingLevelAction = "restart";
+    }
+}
+
+function computeRecruiterInsights() {
+    const moves = analytics.moves || [];
+    const resetsLogged = analytics.resets || [];
+    if (!moves.length) {
+        return {
+            metrics: {
+                totalMoves: 0,
+                totalResets: resetsLogged.length,
+                attemptsUsed: currentAttempt,
+                adjacentMoveRatio: 0,
+                repeatedErrorCount: 0,
+                safeRatio: 0,
+                wallRatio: 0,
+                earlyErrors: 0,
+                lateErrors: 0,
+                errorsTrend: "flat"
+            },
+            labels: {
+                explorationStrategy: "No Data",
+                learningAgility: "No Data",
+                workingMemory: "No Data",
+                timePressure: "No Data",
+                riskAppetite: "No Data"
+            },
+            summaryLines: ["Not enough moves were recorded to derive behavioural insights."]
+        };
+    }
+
+    const totalMoves = moves.length;
+    const safeMoves = moves.filter(m => m.result === "safe").length;
+    const wallMoves = totalMoves - safeMoves;
+
+    let adjacentMoves = 0;
+    for (let i = 1; i < moves.length; i++) {
+        const prev = moves[i - 1];
+        const curr = moves[i];
+        if (Math.abs(prev.row - curr.row) + Math.abs(prev.col - curr.col) === 1) {
+            adjacentMoves++;
+        }
+    }
+    const adjacentMoveRatio = moves.length > 1 ? adjacentMoves / (moves.length - 1) : 1;
+
+    const seenWallCells = new Set();
+    let repeatedErrorCount = 0;
+    moves.forEach(move => {
+        if (move.result === "wall") {
+            const key = `${move.row},${move.col}`;
+            if (seenWallCells.has(key)) {
+                repeatedErrorCount++;
+            } else {
+                seenWallCells.add(key);
+            }
+        }
+    });
+
+    const movesByAttempt = {};
+    moves.forEach(move => {
+        if (!movesByAttempt[move.attemptNumber]) {
+            movesByAttempt[move.attemptNumber] = [];
+        }
+        movesByAttempt[move.attemptNumber].push(move);
+    });
+
+    const attemptNumbers = Object.keys(movesByAttempt).map(Number).sort((a, b) => a - b);
+    const attemptStats = attemptNumbers.map(num => {
+        const attemptMoves = movesByAttempt[num].sort((a, b) => a.moveNumber - b.moveNumber);
+        const walls = attemptMoves.filter(m => m.result === "wall").length;
+        const earlyLimit = Math.max(1, Math.ceil(attemptMoves.length * 0.4));
+        let earlyErrors = 0;
+        let lateErrors = 0;
+        attemptMoves.forEach(move => {
+            if (move.result === "wall") {
+                if (move.moveNumber <= earlyLimit) {
+                    earlyErrors++;
+                } else {
+                    lateErrors++;
+                }
+            }
+        });
+
+        return {
+            attemptNumber: num,
+            moves: attemptMoves.length,
+            walls,
+            earlyErrors,
+            lateErrors
+        };
+    });
+
+    const errorsTrend = determineTrend(attemptStats.map(a => a.walls));
+    const moveTrend = determineTrend(attemptStats.map(a => a.moves));
+    const totalEarlyErrors = attemptStats.reduce((sum, stat) => sum + stat.earlyErrors, 0);
+    const totalLateErrors = attemptStats.reduce((sum, stat) => sum + stat.lateErrors, 0);
+
+    const firstMoveTime = moves[0].time;
+    const lastMoveTime = moves[moves.length - 1].time;
+    const timeRange = lastMoveTime - firstMoveTime;
+    const timePerMoveAvg = moves.length > 1 ? timeRange / (moves.length - 1) : 0;
+    const firstSegmentCount = Math.max(1, Math.floor(moves.length * 0.3));
+    const lastSegmentCount = Math.max(1, Math.floor(moves.length * 0.3));
+    const firstSegmentAvg = computeSegmentPace(moves.slice(0, firstSegmentCount));
+    const lastSegmentAvg = computeSegmentPace(moves.slice(moves.length - lastSegmentCount));
+    const timePressureDelta = lastSegmentAvg - firstSegmentAvg;
+
+    const safeRatio = safeMoves / totalMoves;
+    const wallRatio = wallMoves / totalMoves;
+
+    let explorationStrategy = "Mixed";
+    if (adjacentMoveRatio >= 0.75 && repeatedErrorCount <= 1) {
+        explorationStrategy = "Systematic";
+    } else if (adjacentMoveRatio <= 0.5 && repeatedErrorCount >= 3) {
+        explorationStrategy = "Random";
+    }
+
+    let learningAgility = "Moderate";
+    if (errorsTrend === "improving" || moveTrend === "improving") {
+        learningAgility = "High";
+    } else if (errorsTrend === "worsening") {
+        learningAgility = "Low";
+    }
+
+    let workingMemory = "Average";
+    if (repeatedErrorCount <= 1) {
+        workingMemory = "Strong";
+    } else if (repeatedErrorCount >= 4) {
+        workingMemory = "Struggles";
+    }
+
+    let timePressure = "Calm";
+    if (timePressureDelta > 400) {
+        timePressure = "Highly Affected";
+    } else if (timePressureDelta > 150) {
+        timePressure = "Somewhat Affected";
+    }
+
+    let riskAppetite = "Balanced";
+    if (wallRatio <= 0.12) {
+        riskAppetite = "Over-cautious";
+    } else if (wallRatio >= 0.4) {
+        riskAppetite = "Over-risking";
+    }
+
+    const metrics = {
+        totalMoves,
+        safeMoves,
+        wallMoves,
+        totalResets: resetsLogged.length,
+        attemptsUsed: currentAttempt,
+        adjacentMoveRatio,
+        repeatedErrorCount,
+        errorsTrend,
+        moveTrend,
+        earlyErrors: totalEarlyErrors,
+        lateErrors: totalLateErrors,
+        timePerMoveAvg,
+        firstSegmentAvg,
+        lastSegmentAvg,
+        timePressureDelta,
+        safeRatio,
+        wallRatio,
+        durationMs: analytics.endedAt && analytics.startedAt ? analytics.endedAt - analytics.startedAt : timeRange
+    };
+
+    const labels = {
+        explorationStrategy,
+        learningAgility,
+        workingMemory,
+        timePressure,
+        riskAppetite
+    };
+
+    const summaryLines = buildRecruiterSummary({ metrics, labels });
+
+    return { metrics, labels, summaryLines };
+}
+
+function determineTrend(values) {
+    if (!values.length || values.every(v => v === 0)) return "flat";
+    if (values.length === 1) return "flat";
+    const first = values[0];
+    const last = values[values.length - 1];
+    if (first === 0 && last === 0) return "flat";
+    if (first === 0 && last > 0) return "worsening";
+    const ratio = last / (first || 1);
+    if (ratio <= 0.7 || last < first) return "improving";
+    if (ratio >= 1.3 && last > first) return "worsening";
+    return "flat";
+}
+
+function computeSegmentPace(segmentMoves) {
+    if (!segmentMoves.length || segmentMoves.length === 1) return 0;
+    const duration = segmentMoves[segmentMoves.length - 1].time - segmentMoves[0].time;
+    return duration / (segmentMoves.length - 1);
+}
+
+function buildRecruiterSummary(insights) {
+    const { metrics, labels } = insights;
+    const lines = [];
+    const adjacentPercent = Math.round((metrics.adjacentMoveRatio || 0) * 100);
+    lines.push(`Exploration style: ${labels.explorationStrategy} (${adjacentPercent}% adjacent moves, ${metrics.repeatedErrorCount} repeated wall clicks).`);
+
+    const totalErrors = metrics.earlyErrors + metrics.lateErrors;
+    if (totalErrors > 0) {
+        const earlyShare = Math.round((metrics.earlyErrors / totalErrors) * 100);
+        const clusteringText = metrics.earlyErrors >= metrics.lateErrors
+            ? `${earlyShare}% of errors happened early before stabilising.`
+            : `Late-run errors (${100 - earlyShare}% of them) indicate fading focus.`;
+        lines.push(`Learning curve: ${labels.learningAgility}. ${clusteringText}`);
+    } else {
+        lines.push(`Learning curve: ${labels.learningAgility}. No wall hits after the initial exploration.`);
+    }
+
+    lines.push(`Working memory & recall: ${labels.workingMemory}, with ${metrics.repeatedErrorCount} repeated mistakes out of ${totalErrors || 0} errors.`);
+
+    const paceFirst = Math.round(metrics.firstSegmentAvg || 0);
+    const paceLast = Math.round(metrics.lastSegmentAvg || 0);
+    lines.push(`Time pressure: ${labels.timePressure} (avg pace ${Math.round(metrics.timePerMoveAvg || 0)}ms/move, shifted from ${paceFirst}ms early to ${paceLast}ms late).`);
+
+    const safePercent = Math.round((metrics.safeRatio || 0) * 100);
+    const wallPercent = Math.round((metrics.wallRatio || 0) * 100);
+    lines.push(`Risk appetite: ${labels.riskAppetite} (${safePercent}% safe vs ${wallPercent}% wall clicks across ${metrics.attemptsUsed} attempt${metrics.attemptsUsed === 1 ? "" : "s"}).`);
+
+    return lines;
+}
+
+function showRecruiterInsights(insights) {
+    if (!insights) return;
+    const overlay = document.getElementById("recruiterOverlay");
+    if (!overlay) return;
+    const tags = document.getElementById("recruiterTags");
+    const summaryEl = document.getElementById("recruiterSummary");
+    tags.innerHTML = "";
+    summaryEl.innerHTML = "";
+
+    const labelMap = {
+        "Exploration": insights.labels.explorationStrategy,
+        "Learning": insights.labels.learningAgility,
+        "Memory": insights.labels.workingMemory,
+        "Time Pressure": insights.labels.timePressure,
+        "Risk": insights.labels.riskAppetite
+    };
+
+    Object.entries(labelMap).forEach(([key, value]) => {
+        const span = document.createElement("span");
+        span.className = "recruiter-tag";
+        span.textContent = `${key}: ${value}`;
+        tags.appendChild(span);
+    });
+
+    insights.summaryLines.forEach(line => {
+        const li = document.createElement("li");
+        li.textContent = line;
+        summaryEl.appendChild(li);
+    });
+
+    overlay.classList.add("active");
+}
+
+function hideRecruiterInsights(triggerAction = true) {
+    const overlay = document.getElementById("recruiterOverlay");
+    if (overlay) {
+        overlay.classList.remove("active");
+    }
+    if (triggerAction) {
+        applyPendingLevelAction();
+    }
+}
+
+function applyPendingLevelAction() {
+    if (!pendingLevelAction) return;
+    const action = pendingLevelAction;
+    pendingLevelAction = null;
+    if (action === "advance") {
+        currentLevelIndex++;
+        initializeGameState();
+    } else if (action === "restart") {
         restartGame();
     }
 }
