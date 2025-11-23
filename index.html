@@ -16,52 +16,68 @@
         flex-direction: column;
         align-items: center;
         padding: 0 24px 40px;
+        min-height: 100vh;
     }
-    h1 { margin-top: 20px; font-size: 28px; }
+    h1 { margin-top: 20px; font-size: 32px; text-align: center; }
 
     #controls {
         margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
     }
     #controls button {
-        margin: 0 5px;
-        padding: 8px 14px;
-        border-radius: 6px;
+        margin: 6px 5px;
+        padding: 10px 16px;
+        border-radius: 8px;
         border: none;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 16px;
     }
     #controls button.active {
         outline: 2px solid #f1c40f;
     }
 
     #levelMessage {
-        margin-top: 10px;
-        font-size: 16px;
+        margin-top: 12px;
+        font-size: 18px;
         min-height: 24px;
+        text-align: center;
+    }
+
+    #stats {
+        margin-top: 15px;
+        font-size: 20px;
+        text-align: center;
+        line-height: 1.4;
     }
 
     #playArea {
-        margin-top: 15px;
+        margin-top: 25px;
         width: 100%;
-        max-width: 900px;
+        max-width: 1000px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 24px;
         align-items: center;
+        padding: 0 10px;
     }
     #instructions {
-        font-size: 15px;
-        max-width: 360px;
-        line-height: 1.4;
+        font-size: 18px;
+        max-width: 420px;
+        line-height: 1.6;
         text-align: left;
         margin: 0 auto;
         width: 100%;
+        background: rgba(255,255,255,0.05);
+        padding: 12px 18px;
+        border-radius: 12px;
     }
     body.game-live #instructions {
         flex: 1;
     }
     #gridWrapper {
-        display: flex;
+        display: none;
         justify-content: center;
         width: 100%;
     }
@@ -107,11 +123,21 @@
 
     #restartBtn {
         margin-top: 15px;
-        padding: 10px 20px;
-        font-size: 16px;
-        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 18px;
+        border-radius: 10px;
         cursor: pointer;
         border: none;
+        background: #27ae60;
+        color: white;
+        transition: background 0.2s ease;
+        display: none;
+    }
+    body.game-live #restartBtn {
+        display: inline-block;
+    }
+    #restartBtn:hover {
+        background: #1e874b;
     }
     #recruiterOverlay {
         position: fixed;
@@ -188,29 +214,41 @@
         cursor: pointer;
     }
 
-    @media (max-width: 540px) {
+    @media (max-width: 600px) {
         body {
-            padding: 0 16px 32px;
+            padding: 0 12px 24px;
         }
         h1 {
-            font-size: 24px;
-            text-align: center;
+            font-size: 26px;
+        }
+        #controls button {
+            flex: 1 1 45%;
+            max-width: 180px;
+            font-size: 15px;
+            padding: 9px 12px;
+        }
+        #levelMessage {
+            font-size: 16px;
         }
         #stats {
             font-size: 16px;
-            text-align: center;
-            line-height: 1.4;
+            line-height: 1.5;
         }
         #instructions {
+            font-size: 16px;
+            padding: 10px 14px;
+        }
+        #grid {
             max-width: 100%;
         }
-        #controls {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
+        #recruiterPanel {
+            padding: 18px;
         }
-        #controls button {
-            margin-top: 6px;
+        #recruiterSummary {
+            font-size: 14px;
+        }
+        #closeRecruiterBtn {
+            font-size: 14px;
         }
     }
 
@@ -224,6 +262,7 @@
             margin: 0;
         }
         body.game-live #gridWrapper {
+            display: flex;
             flex: 1;
         }
     }
@@ -292,7 +331,7 @@ let resets = 0;
 let moves = 0;
 let timer = 0;
 let timerInterval = null;
-let difficulty = "hard"; // default to harder, hiring-style
+let difficulty = "easy"; // default to easier mode
 const MIN_START_END_DISTANCE = 4; // keep S and E apart for better gameplay
 const GRID_GAP = 5;
 let keyCell = null;
