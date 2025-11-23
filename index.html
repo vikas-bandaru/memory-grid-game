@@ -44,10 +44,13 @@
     #controls button.active {
         outline: 2px solid #f1c40f;
     }
-    body:not(.game-live) #controls button:not(#startBtn) {
-        opacity: 0.4;
-        pointer-events: none;
-    }
+body:not(.game-live) #controls button:not(#startBtn) {
+    opacity: 0.4;
+    pointer-events: none;
+}
+.compact-ui h1 {
+    font-size: 26px;
+}
 
     #levelMessage {
         margin-top: 12px;
@@ -314,6 +317,59 @@
             font-size: 14px;
             padding: 8px 10px;
         }
+        body[data-grid-size="5"] #controls button {
+            font-size: 15px;
+            padding: 10px 14px;
+            min-height: 50px;
+        }
+        body[data-grid-size="6"] #controls button {
+            font-size: 14.5px;
+            padding: 9px 12px;
+            min-height: 46px;
+        }
+        body[data-grid-size="7"] #controls button {
+            font-size: 14px;
+            padding: 8px 11px;
+            min-height: 44px;
+        }
+        body[data-grid-size="8"] #controls button {
+            font-size: 13.5px;
+            padding: 7px 10px;
+            min-height: 40px;
+        }
+        body[data-grid-size="9"] #controls button {
+            font-size: 12.5px;
+            padding: 6px 8px;
+            min-height: 36px;
+        }
+        body.compact-ui #controls button {
+            min-height: 34px;
+        }
+        body[data-grid-size="5"] #restartBtn {
+            font-size: 18px;
+            padding: 12px 22px;
+            min-height: 48px;
+        }
+        body[data-grid-size="6"] #restartBtn {
+            font-size: 17px;
+            padding: 11px 20px;
+            min-height: 46px;
+        }
+        body[data-grid-size="7"] #restartBtn {
+            font-size: 16px;
+            padding: 10px 18px;
+            min-height: 44px;
+        }
+        body[data-grid-size="8"] #restartBtn {
+            font-size: 15px;
+            padding: 10px 16px;
+            min-height: 42px;
+        }
+        body[data-grid-size="9"] #restartBtn {
+            font-size: 13px;
+            padding: 9px 14px;
+            min-height: 38px;
+        }
     }
 
     @media (min-width: 768px) {
@@ -415,6 +471,7 @@ let levelsWon = 0;
 let gameActive = false;
 let currentAttempt = 1;
 let pendingLevelAction = null;
+let isTransitioning = false;
 
 const analytics = {
     sessionId: Date.now(),
@@ -436,6 +493,7 @@ function updateDifficultyButtons() {
 
 // Called from buttons
 function setDifficulty(level) {
+    if (isTransitioning) return;
     if (difficulty === level) return;
     difficulty = level;
     updateDifficultyButtons();
@@ -467,6 +525,13 @@ function showMessage(msg) {
 
 function updateLayoutState() {
     document.body.classList.toggle("game-live", gameActive);
+}
+
+function updateCompactUIState() {
+    const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+    const compact = isMobile && gridSize >= 8;
+    document.body.classList.toggle("compact-ui", compact);
+    document.body.dataset.gridSize = gridSize;
 }
 
 function setInstructionsCollapsed(collapsed) {
@@ -503,10 +568,12 @@ function resetIdleUI(message = "Press Start Game to begin.") {
     keyCell = null;
     path = [];
     revealed = [];
+    levelsWon = 0;
     document.getElementById("timer").textContent = timer;
     document.getElementById("moves").textContent = moves;
     document.getElementById("resets").textContent = resets;
     updateKeyStatus();
+    updateLevelDisplay();
     showMessage(message);
     const collapseForMobile = window.innerWidth <= MOBILE_BREAKPOINT;
     setInstructionsCollapsed(collapseForMobile);
@@ -530,6 +597,7 @@ function updateResponsiveCellSize() {
     document.documentElement.style.setProperty("--grid-gap", `${GRID_GAP}px`);
     gridElement.style.width = `${gridWidth}px`;
     gridElement.style.maxWidth = "100%";
+    updateCompactUIState();
 }
 
 function handleResponsiveResize() {
@@ -537,6 +605,7 @@ function handleResponsiveResize() {
     if (window.innerWidth > MOBILE_BREAKPOINT) {
         setInstructionsCollapsed(false);
     }
+    updateCompactUIState();
 }
 
 function resetAnalyticsForLevel() {
@@ -766,38 +835,44 @@ function cancelPendingReset() {
 
 // Restart everything
 function initializeGameState() {
-    if (!gameActive) return;
-    cancelPendingReset();
-    hideRecruiterInsights(false);
-    const levelSize = LEVELS[currentLevelIndex];
-    gridSize = levelSize;
-    resets = 0;
-    moves = 0;
-    timer = 0;
-    hasKey = false;
-    document.getElementById("resets").textContent = resets;
-    document.getElementById("moves").textContent = moves;
-    document.getElementById("timer").textContent = timer;
-    updateKeyStatus();
-    updateLevelDisplay();
-    showMessage("Collect the key before heading to the door.");
+    if (!gameActive || isTransitioning) return;
+    isTransitioning = true;
+    try {
+        cancelPendingReset();
+        hideRecruiterInsights(false);
+        const levelSize = LEVELS[currentLevelIndex];
+        gridSize = levelSize;
+        resets = 0;
+        moves = 0;
+        timer = 0;
+        hasKey = false;
+        document.getElementById("resets").textContent = resets;
+        document.getElementById("moves").textContent = moves;
+        document.getElementById("timer").textContent = timer;
+        updateKeyStatus();
+        updateLevelDisplay();
+        showMessage("Collect the key before heading to the door.");
 
-    resetAnalyticsForLevel();
+        resetAnalyticsForLevel();
 
-    startTimer();
+        startTimer();
 
-    randomizeStartEnd();
+        randomizeStartEnd();
 
-    initRevealed();
-    path = generatePath();
-    placeKey();
-    createGrid();
-    if (window.innerWidth <= MOBILE_BREAKPOINT) {
-        setInstructionsCollapsed(true);
+        initRevealed();
+        path = generatePath();
+        placeKey();
+        createGrid();
+        if (window.innerWidth <= MOBILE_BREAKPOINT) {
+            setInstructionsCollapsed(true);
+        }
+    } finally {
+        isTransitioning = false;
     }
 }
 
 function restartGame(forceStart = false) {
+    if (isTransitioning) return;
     pendingLevelAction = null;
     currentLevelIndex = 0;
     levelsWon = 0;
@@ -819,11 +894,13 @@ function restartGame(forceStart = false) {
 }
 
 function startGame() {
+    if (isTransitioning) return;
     restartGame(true);
     collapseInstructionsForMobile();
 }
 
 function makeGridHarder() {
+    if (isTransitioning) return;
     if (!gameActive) {
         showMessage("Start the game before skipping levels.");
         return;
@@ -1187,11 +1264,17 @@ function hideRecruiterInsights(triggerAction = true) {
     }
     if (triggerAction) {
         applyPendingLevelAction();
+    } else if (currentLevelIndex >= TOTAL_LEVELS - 1) {
+        restartGame(false);
     }
 }
 
 function applyPendingLevelAction() {
     if (!pendingLevelAction) return;
+    if (isTransitioning) {
+        setTimeout(applyPendingLevelAction, 100);
+        return;
+    }
     const action = pendingLevelAction;
     pendingLevelAction = null;
     if (action === "advance") {
