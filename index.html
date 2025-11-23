@@ -3,6 +3,11 @@
 <head>
 <title>Memory Grid Game</title>
 <style>
+    :root {
+        --cell-size: 50px;
+        --grid-gap: 5px;
+    }
+
     body {
         background: #0e0e0e;
         color: white;
@@ -10,6 +15,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        padding: 0 24px 40px;
     }
     h1 { margin-top: 20px; font-size: 28px; }
 
@@ -34,12 +40,30 @@
         min-height: 24px;
     }
 
-    #instructions {
+    #playArea {
         margin-top: 15px;
+        width: 100%;
+        max-width: 900px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+    #instructions {
         font-size: 15px;
-        max-width: 420px;
+        max-width: 360px;
         line-height: 1.4;
         text-align: left;
+        margin: 0 auto;
+        width: 100%;
+    }
+    body.game-live #instructions {
+        flex: 1;
+    }
+    #gridWrapper {
+        display: flex;
+        justify-content: center;
+        width: 100%;
     }
     #instructions ul {
         margin: 6px 0 0 16px;
@@ -51,14 +75,16 @@
 
     #grid {
         display: grid;
-        grid-template-columns: repeat(7, 50px);
-        grid-template-rows: repeat(7, 50px);
-        gap: 5px;
-        margin-top: 20px;
+        grid-template-columns: repeat(7, var(--cell-size));
+        grid-template-rows: repeat(7, var(--cell-size));
+        gap: var(--grid-gap);
+        margin: 20px auto 0;
+        width: 100%;
+        max-width: 420px;
     }
     .cell {
-        width: 50px;
-        height: 50px;
+        width: var(--cell-size);
+        height: var(--cell-size);
         background: #444;
         display: flex;
         justify-content: center;
@@ -87,6 +113,46 @@
         cursor: pointer;
         border: none;
     }
+
+    @media (max-width: 540px) {
+        body {
+            padding: 0 16px 32px;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+        }
+        #stats {
+            font-size: 16px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        #instructions {
+            max-width: 100%;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #controls button {
+            margin-top: 6px;
+        }
+    }
+
+    @media (min-width: 768px) {
+        body.game-live #playArea {
+            flex-direction: row;
+            align-items: flex-start;
+        }
+        body.game-live #instructions {
+            text-align: left;
+            margin: 0;
+        }
+        body.game-live #gridWrapper {
+            flex: 1;
+        }
+    }
 </style>
 </head>
 <body>
@@ -94,12 +160,13 @@
 <h1>Memory Grid Game</h1>
 
 <div id="controls">
+    <button id="startBtn" onclick="startGame()">Start Game</button>
     <button id="easyBtn" onclick="setDifficulty('easy')">Easy</button>
     <button id="hardBtn" onclick="setDifficulty('hard')">Hard (Hiring Style)</button>
     <button id="harderBtn" onclick="makeGridHarder()">Next Level</button>
 </div>
 
-<div id="levelMessage">Collect the key before heading to the door.</div>
+<div id="levelMessage">Press Start Game to begin.</div>
 
 <div id="stats">
     🔢 Level: <span id="levelDisplay">1 / 5</span>  
@@ -109,17 +176,22 @@
     | 🔑 Key: <span id="keyStatus">No</span>
 </div>
 
-<div id="instructions">
-    <strong>How to play:</strong>
-    <ul>
-        <li>Tap tiles to trace the hidden safe path from <strong>S</strong> to the door.</li>
-        <li>The door stays locked until you uncover the hidden <strong>key</strong>.</li>
-        <li>A wrong tile resets the board (hard mode hides your progress).</li>
-        <li>Use Restart to start over or Next Level to skip ahead—only wins count toward finishing all five levels.</li>
-    </ul>
-</div>
+<div id="playArea">
+    <div id="instructions">
+        <strong>How to play:</strong>
+        <ul>
+            <li>Hit <strong>Start Game</strong> when you're ready; the timer begins once the board appears.</li>
+            <li>Tap tiles to trace the hidden safe path from <strong>S</strong> to the door.</li>
+            <li>The door stays locked until you uncover the hidden <strong>key</strong>.</li>
+            <li>A wrong tile resets the board (hard mode hides your progress).</li>
+            <li>Use Restart to start over or Next Level to skip ahead—only wins count toward finishing all five levels.</li>
+        </ul>
+    </div>
 
-<div id="grid"></div>
+    <div id="gridWrapper">
+        <div id="grid"></div>
+    </div>
+</div>
 
 <button id="restartBtn" onclick="restartGame()">Restart Game</button>
 
@@ -138,10 +210,12 @@ let timer = 0;
 let timerInterval = null;
 let difficulty = "hard"; // default to harder, hiring-style
 const MIN_START_END_DISTANCE = 4; // keep S and E apart for better gameplay
+const GRID_GAP = 5;
 let keyCell = null;
 let hasKey = false;
 let pendingResetTimeout = null;
 let levelsWon = 0;
+let gameActive = false;
 
 // Update difficulty UI
 function updateDifficultyButtons() {
@@ -154,6 +228,10 @@ function setDifficulty(level) {
     if (difficulty === level) return;
     difficulty = level;
     updateDifficultyButtons();
+    if (!gameActive) {
+        showMessage(`${level === "easy" ? "Easy" : "Hard"} mode selected. Press Start Game to begin.`);
+        return;
+    }
     initializeGameState();
 }
 
@@ -174,6 +252,24 @@ function updateKeyStatus() {
 
 function showMessage(msg) {
     document.getElementById("levelMessage").textContent = msg;
+}
+
+function updateLayoutState() {
+    document.body.classList.toggle("game-live", gameActive);
+}
+
+function updateResponsiveCellSize() {
+    const gridElement = document.getElementById("grid");
+    if (!gridElement) return;
+    const viewportWidth = window.innerWidth || 420;
+    const maxWidth = Math.min(viewportWidth - 40, 420);
+    const safeWidth = Math.max(180, maxWidth);
+    const totalGap = (gridSize - 1) * GRID_GAP;
+    const cellSize = Math.max(32, Math.floor((safeWidth - totalGap) / gridSize));
+    const gridWidth = cellSize * gridSize + totalGap;
+    document.documentElement.style.setProperty("--cell-size", `${cellSize}px`);
+    document.documentElement.style.setProperty("--grid-gap", `${GRID_GAP}px`);
+    gridElement.style.width = `${gridWidth}px`;
 }
 
 // Generate a random safe path
@@ -213,9 +309,14 @@ function placeKey() {
 // Build the grid UI
 function createGrid() {
     const grid = document.getElementById("grid");
+    updateResponsiveCellSize();
+    if (!gameActive) {
+        grid.innerHTML = "";
+        return;
+    }
     grid.innerHTML = "";
-    grid.style.gridTemplateColumns = `repeat(${gridSize}, 50px)`;
-    grid.style.gridTemplateRows = `repeat(${gridSize}, 50px)`;
+    grid.style.gridTemplateColumns = `repeat(${gridSize}, var(--cell-size))`;
+    grid.style.gridTemplateRows = `repeat(${gridSize}, var(--cell-size))`;
 
     for (let r = 0; r < gridSize; r++) {
         for (let c = 0; c < gridSize; c++) {
@@ -260,6 +361,10 @@ function createGrid() {
 
 // Handle clicks
 function cellClicked(r, c, cell) {
+    if (!gameActive) {
+        showMessage("Press Start Game to begin!");
+        return;
+    }
     moves++;
     document.getElementById("moves").textContent = moves;
 
@@ -301,6 +406,7 @@ function cellClicked(r, c, cell) {
 
 // When user hits a wall
 function resetAfterMistake() {
+    if (!gameActive) return;
     resets++;
     document.getElementById("resets").textContent = resets;
     moves = 0;
@@ -337,6 +443,7 @@ function cancelPendingReset() {
 
 // Restart everything
 function initializeGameState() {
+    if (!gameActive) return;
     cancelPendingReset();
     const levelSize = LEVELS[currentLevelIndex];
     gridSize = levelSize;
@@ -361,13 +468,29 @@ function initializeGameState() {
     createGrid();
 }
 
-function restartGame() {
+function restartGame(forceStart = false) {
+    if (!gameActive && !forceStart) {
+        showMessage("Press Start Game to begin!");
+        return;
+    }
+    if (forceStart) {
+        gameActive = true;
+    }
     currentLevelIndex = 0;
     levelsWon = 0;
     initializeGameState();
+    updateLayoutState();
+}
+
+function startGame() {
+    restartGame(true);
 }
 
 function makeGridHarder() {
+    if (!gameActive) {
+        showMessage("Start the game before skipping levels.");
+        return;
+    }
     if (currentLevelIndex < TOTAL_LEVELS - 1) {
         currentLevelIndex++;
         initializeGameState();
@@ -440,7 +563,10 @@ function levelComplete() {
 
 // Init on load
 updateDifficultyButtons();
-initializeGameState();
+updateResponsiveCellSize();
+window.addEventListener("resize", updateResponsiveCellSize);
+updateLayoutState();
+showMessage("Press Start Game to begin.");
 
 </script>
 
