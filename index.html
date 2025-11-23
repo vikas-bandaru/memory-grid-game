@@ -84,6 +84,43 @@
         padding: 12px 18px;
         border-radius: 12px;
     }
+    #instructionsToggle {
+        width: 100%;
+        background: transparent;
+        color: inherit;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+    }
+    #instructions .chevron {
+        display: inline-block;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #fff;
+        transition: transform 0.2s ease;
+    }
+    #instructions .instructions-content {
+        overflow: hidden;
+        max-height: 1000px;
+        transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
+        margin-top: 10px;
+    }
+    #instructions.collapsed .instructions-content {
+        max-height: 0;
+        opacity: 0;
+        margin-top: 0;
+        pointer-events: none;
+    }
+    #instructions.collapsed .chevron {
+        transform: rotate(-90deg);
+    }
     body.game-live #instructions {
         flex: 1;
     }
@@ -280,6 +317,9 @@
     }
 
     @media (min-width: 768px) {
+        #instructionsToggle {
+            display: none;
+        }
         body.game-live #playArea {
             flex-direction: row;
             align-items: flex-start;
@@ -317,7 +357,12 @@
 </div>
 
 <div id="playArea">
-    <div id="instructions">
+<div id="instructions">
+    <button id="instructionsToggle" type="button" aria-expanded="true" aria-controls="instructionsContent" onclick="toggleInstructionsAccordion()">
+        <span>How to play</span>
+        <span class="chevron" aria-hidden="true"></span>
+    </button>
+    <div class="instructions-content" id="instructionsContent">
         <strong>How to play:</strong>
         <ul>
             <li>Hit <strong>Start Game</strong> when you're ready; the timer begins once the board appears.</li>
@@ -327,6 +372,7 @@
             <li>Use Restart to start over or Next Level to skip ahead—only wins count toward finishing all five levels.</li>
         </ul>
     </div>
+</div>
 
     <div id="gridWrapper">
         <div id="grid"></div>
@@ -361,6 +407,7 @@ let timerInterval = null;
 let difficulty = "easy"; // default to easier mode
 const MIN_START_END_DISTANCE = 4; // keep S and E apart for better gameplay
 const GRID_GAP = 5;
+const MOBILE_BREAKPOINT = 600;
 let keyCell = null;
 let hasKey = false;
 let pendingResetTimeout = null;
@@ -422,6 +469,30 @@ function updateLayoutState() {
     document.body.classList.toggle("game-live", gameActive);
 }
 
+function setInstructionsCollapsed(collapsed) {
+    const instructions = document.getElementById("instructions");
+    const toggle = document.getElementById("instructionsToggle");
+    if (!instructions) return;
+    instructions.classList.toggle("collapsed", collapsed);
+    if (toggle) {
+        toggle.setAttribute("aria-expanded", (!collapsed).toString());
+    }
+}
+
+function toggleInstructionsAccordion() {
+    if (window.innerWidth > MOBILE_BREAKPOINT) return;
+    const instructions = document.getElementById("instructions");
+    if (!instructions) return;
+    const collapsed = instructions.classList.contains("collapsed");
+    setInstructionsCollapsed(!collapsed);
+}
+
+function collapseInstructionsForMobile() {
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        setInstructionsCollapsed(true);
+    }
+}
+
 function resetIdleUI(message = "Press Start Game to begin.") {
     stopTimer();
     cancelPendingReset();
@@ -437,6 +508,8 @@ function resetIdleUI(message = "Press Start Game to begin.") {
     document.getElementById("resets").textContent = resets;
     updateKeyStatus();
     showMessage(message);
+    const collapseForMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+    setInstructionsCollapsed(collapseForMobile);
     const grid = document.getElementById("grid");
     if (grid) grid.innerHTML = "";
     hideRecruiterInsights(false);
@@ -457,6 +530,13 @@ function updateResponsiveCellSize() {
     document.documentElement.style.setProperty("--grid-gap", `${GRID_GAP}px`);
     gridElement.style.width = `${gridWidth}px`;
     gridElement.style.maxWidth = "100%";
+}
+
+function handleResponsiveResize() {
+    updateResponsiveCellSize();
+    if (window.innerWidth > MOBILE_BREAKPOINT) {
+        setInstructionsCollapsed(false);
+    }
 }
 
 function resetAnalyticsForLevel() {
@@ -712,6 +792,9 @@ function initializeGameState() {
     path = generatePath();
     placeKey();
     createGrid();
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        setInstructionsCollapsed(true);
+    }
 }
 
 function restartGame(forceStart = false) {
@@ -737,6 +820,7 @@ function restartGame(forceStart = false) {
 
 function startGame() {
     restartGame(true);
+    collapseInstructionsForMobile();
 }
 
 function makeGridHarder() {
@@ -1120,8 +1204,8 @@ function applyPendingLevelAction() {
 
 // Init on load
 updateDifficultyButtons();
-updateResponsiveCellSize();
-window.addEventListener("resize", updateResponsiveCellSize);
+handleResponsiveResize();
+window.addEventListener("resize", handleResponsiveResize);
 updateLayoutState();
 resetIdleUI();
 
