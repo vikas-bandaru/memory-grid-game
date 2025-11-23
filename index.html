@@ -37,6 +37,10 @@
     #controls button.active {
         outline: 2px solid #f1c40f;
     }
+    body:not(.game-live) #controls button:not(#startBtn) {
+        opacity: 0.4;
+        pointer-events: none;
+    }
 
     #levelMessage {
         margin-top: 12px;
@@ -395,6 +399,26 @@ function updateLayoutState() {
     document.body.classList.toggle("game-live", gameActive);
 }
 
+function resetIdleUI(message = "Press Start Game to begin.") {
+    stopTimer();
+    cancelPendingReset();
+    timer = 0;
+    moves = 0;
+    resets = 0;
+    hasKey = false;
+    keyCell = null;
+    path = [];
+    revealed = [];
+    document.getElementById("timer").textContent = timer;
+    document.getElementById("moves").textContent = moves;
+    document.getElementById("resets").textContent = resets;
+    updateKeyStatus();
+    showMessage(message);
+    const grid = document.getElementById("grid");
+    if (grid) grid.innerHTML = "";
+    hideRecruiterInsights(false);
+}
+
 function updateResponsiveCellSize() {
     const gridElement = document.getElementById("grid");
     if (!gridElement) return;
@@ -461,8 +485,19 @@ function placeKey() {
         keyCell = null;
         return;
     }
-    const keyIndex = Math.floor(Math.random() * (path.length - 2)) + 1; // exclude start/end
-    keyCell = path[keyIndex];
+    const middleCells = path.slice(1, path.length - 1);
+    let candidates = middleCells;
+    if (gridSize > 6) {
+        candidates = middleCells.filter(cell => {
+            const nearStart = manhattanDistance(cell, start) <= 1;
+            const nearEnd = manhattanDistance(cell, end) <= 1;
+            return !(nearStart || nearEnd);
+        });
+        if (!candidates.length) {
+            candidates = middleCells;
+        }
+    }
+    keyCell = candidates[Math.floor(Math.random() * candidates.length)];
 }
 
 // Build the grid UI
@@ -561,7 +596,9 @@ function cellClicked(r, c, cell) {
         hasKey = true;
         updateKeyStatus();
         showMessage("Key collected! Find the door.");
-        createGrid();
+        cell.classList.remove("safe");
+        cell.classList.add("key");
+        cell.textContent = "K";
         return;
     }
 
@@ -652,18 +689,24 @@ function initializeGameState() {
 }
 
 function restartGame(forceStart = false) {
-    if (!gameActive && !forceStart) {
-        showMessage("Press Start Game to begin!");
-        return;
-    }
-    if (forceStart) {
-        gameActive = true;
-    }
     pendingLevelAction = null;
     currentLevelIndex = 0;
     levelsWon = 0;
-    initializeGameState();
-    updateLayoutState();
+    if (!forceStart && !gameActive) {
+        resetIdleUI();
+        return;
+    }
+    if (forceStart) {
+        if (!gameActive) {
+            gameActive = true;
+            updateLayoutState();
+        }
+        initializeGameState();
+    } else {
+        gameActive = false;
+        updateLayoutState();
+        resetIdleUI("Game reset. Press Start Game to begin again.");
+    }
 }
 
 function startGame() {
@@ -712,6 +755,10 @@ function distanceBetween(a, b) {
     return Math.hypot(dr, dc);
 }
 
+function manhattanDistance(a, b) {
+    return Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+}
+
 function randomizeStartEnd() {
     // Generate unique random positions with minimum distance
     start = randomCell();
@@ -751,7 +798,7 @@ function levelComplete() {
 
     if (levelsWon >= TOTAL_LEVELS) {
         alert("🏆 All five levels complete! Restarting from level 1.");
-        pendingLevelAction = "restart";
+        pendingLevelAction = "restartAuto";
         return;
     }
 
@@ -760,7 +807,7 @@ function levelComplete() {
     } else {
         const remaining = TOTAL_LEVELS - levelsWon;
         alert(`You cleared the final stage but still need ${remaining} more level${remaining === 1 ? "" : "s"} to finish all five. Restarting so you can complete them.`);
-        pendingLevelAction = "restart";
+        pendingLevelAction = "restartAuto";
     }
 }
 
@@ -1039,8 +1086,8 @@ function applyPendingLevelAction() {
     if (action === "advance") {
         currentLevelIndex++;
         initializeGameState();
-    } else if (action === "restart") {
-        restartGame();
+    } else if (action === "restartAuto") {
+        restartGame(true);
     }
 }
 
@@ -1049,7 +1096,7 @@ updateDifficultyButtons();
 updateResponsiveCellSize();
 window.addEventListener("resize", updateResponsiveCellSize);
 updateLayoutState();
-showMessage("Press Start Game to begin.");
+resetIdleUI();
 
 </script>
 
