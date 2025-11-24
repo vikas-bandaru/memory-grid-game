@@ -27,7 +27,7 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 8px;
+        gap: 12px;
         width: 100%;
         max-width: 640px;
     }
@@ -40,9 +40,27 @@
         border: none;
         cursor: pointer;
         font-size: 16px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    #startBtn {
+        background: #3498db;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(52,152,219,0.35);
+    }
+    #easyBtn {
+        background: #f5f5f5;
+        color: #2c3e50;
+        border: 1px solid #d5d6d8;
+    }
+    #hardBtn {
+        background: #f1c40f;
+        color: #000;
+        font-weight: bold;
+        box-shadow: 0 8px 18px rgba(241,196,15,0.4);
     }
     #controls button.active {
         outline: 2px solid #f1c40f;
+        transform: translateY(-2px);
     }
 body:not(.game-live) #controls button:not(#startBtn) {
     opacity: 0.4;
@@ -175,6 +193,17 @@ body:not(.game-live) #controls button:not(#startBtn) {
     .start { background: #3498db !important; }
     .door { background: #f1c40f !important; color: black; }
     .key { background: #9b59b6 !important; }
+    .tile-label {
+        display: inline-block;
+        padding: 0 8px;
+        border-radius: 6px;
+        font-weight: bold;
+        color: #fff;
+        margin: 0 4px;
+    }
+    .tile-label.tile-start { background: #3498db; }
+    .tile-label.tile-door { background: #f1c40f; color: #000; }
+    .tile-label.tile-key { background: #9b59b6; }
 
     #stats {
         margin-top: 15px;
@@ -321,6 +350,11 @@ body:not(.game-live) #controls button:not(#startBtn) {
         font-size: 20px;
         text-align: left;
     }
+    #recruiterPanel h2 span {
+        font-size: 14px;
+        font-weight: normal;
+        color: #f1c40f;
+    }
     #recruiterTags {
         display: flex;
         flex-wrap: wrap;
@@ -337,8 +371,65 @@ body:not(.game-live) #controls button:not(#startBtn) {
     }
     #recruiterSummary {
         margin: 0;
-        padding-left: 18px;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .summary-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .summary-text {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 15px;
+    }
+    .summary-label {
+        font-weight: 600;
+    }
+    .summary-value {
+        color: #f1c40f;
+    }
+    .tooltip-wrapper {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+    .tooltip-icon {
+        cursor: pointer;
+        margin-left: 6px;
+        font-size: 16px;
+        line-height: 1;
+    }
+    .tooltip-box {
+        position: absolute;
+        bottom: 120%;
+        right: 0;
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+        padding: 10px 12px;
+        border-radius: 10px;
+        width: max-content;
+        max-width: 260px;
+        font-size: 14px;
         line-height: 1.4;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+        display: none;
+        z-index: 1000;
+    }
+    .tooltip-box.show {
+        display: block;
+    }
+    .tooltip-wrapper:hover .tooltip-box {
+        display: block;
     }
     #closeRecruiterBtn {
         margin-top: 16px;
@@ -374,7 +465,7 @@ body:not(.game-live) #controls button:not(#startBtn) {
             font-size: 26px;
         }
         #controls {
-            gap: 6px;
+            gap: 10px;
         }
         #controls button {
             flex: 1 1 48%;
@@ -420,6 +511,14 @@ body:not(.game-live) #controls button:not(#startBtn) {
         }
         #messageOverlay .message-panel button {
             font-size: 15px;
+        }
+        .summary-line {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .tooltip-box {
+            left: 0;
+            right: auto;
         }
         #doorOverlay .door-panel {
             padding: 16px;
@@ -529,13 +628,13 @@ body:not(.game-live) #controls button:not(#startBtn) {
         <span class="chevron" aria-hidden="true"></span>
     </button>
     <div class="instructions-content" id="instructionsContent">
-        <strong>How to play:</strong>
+        <strong>How to play</strong>
         <ul>
-            <li>Hit <strong>Start Game</strong> when you're ready; the timer begins once the board appears.</li>
-            <li>Tap tiles to trace the hidden safe path from <strong>S</strong> to the door.</li>
-            <li>The door stays locked until you uncover the hidden <strong>key</strong>.</li>
-            <li>A wrong tile resets the board (hard mode hides your progress).</li>
-            <li>Use Restart to start over or Next Level to skip ahead—only wins count toward finishing all five levels.</li>
+            <li>Tap tiles to uncover the <strong>hidden safe path</strong> from <span class="tile-label tile-start">S</span> to the <span class="tile-label tile-door">door (D)</span>.</li>
+            <li>Find the <span class="tile-label tile-key">key (K)</span> first &mdash; the door unlocks only after you collect it.</li>
+            <li>A <strong>wrong tile</strong> resets the board <em>(Hard mode hides all previous progress; Easy mode keeps revealed tiles).</em></li>
+            <li>Reach <span class="tile-label tile-door">D</span> to clear the level.</li>
+            <li>Restart to replay, or use <strong>Next Level</strong> to skip ahead <em>(only completed levels count toward finishing all five).</em></li>
         </ul>
     </div>
 </div>
@@ -564,7 +663,7 @@ body:not(.game-live) #controls button:not(#startBtn) {
 <div id="recruiterOverlay">
     <div id="recruiterPanel">
         <button class="close-icon" aria-label="Close insights" onclick="hideRecruiterInsights()">×</button>
-        <h2>Recruiter View: Behavioural Insights</h2>
+        <h2>Recruiter View: Behavioural Insights <span id="recruiterMode"></span></h2>
         <div id="recruiterTags"></div>
         <ul id="recruiterSummary"></ul>
         <button id="closeRecruiterBtn" onclick="hideRecruiterInsights()">Close</button>
@@ -588,6 +687,7 @@ let difficulty = "easy"; // default to easier mode
 const MIN_START_END_DISTANCE = 4; // keep S and E apart for better gameplay
 const GRID_GAP = 5;
 const MOBILE_BREAKPOINT = 600;
+const INACTIVITY_LIMIT_MS = 25000;
 let keyCell = null;
 let hasKey = false;
 let pendingResetTimeout = null;
@@ -596,6 +696,9 @@ let gameActive = false;
 let currentAttempt = 1;
 let pendingLevelAction = null;
 let isTransitioning = false;
+let inactivityTimeout = null;
+let nudgeShown = false;
+let consecutiveMistakes = 0;
 
 const analytics = {
     sessionId: Date.now(),
@@ -677,6 +780,47 @@ function hideMessageOverlay() {
                 <button type="button" onclick="hideMessageOverlay()">Continue</button>`;
         }
     }
+    if (gameActive) {
+        resetInactivityTimer();
+    }
+}
+
+function showSimpleOverlay(message) {
+    const overlay = document.getElementById("messageOverlay");
+    if (!overlay || overlay.classList.contains("active")) return;
+    const panel = overlay.querySelector(".message-panel");
+    if (!panel) return;
+    panel.innerHTML = "";
+    const p = document.createElement("p");
+    p.textContent = message;
+    panel.appendChild(p);
+    const button = document.createElement("button");
+    button.textContent = "Continue";
+    button.onclick = () => hideMessageOverlay();
+    panel.appendChild(button);
+    overlay.classList.add("active");
+}
+
+function clearInactivityTimer() {
+    if (inactivityTimeout) {
+        clearTimeout(inactivityTimeout);
+        inactivityTimeout = null;
+    }
+}
+
+function resetInactivityTimer() {
+    clearInactivityTimer();
+    if (!gameActive) return;
+    inactivityTimeout = setTimeout(() => {
+        triggerNudge();
+    }, INACTIVITY_LIMIT_MS);
+}
+
+function triggerNudge(message = "Try Easy Mode to learn the basic rules.") {
+    if (nudgeShown || difficulty === "easy" || !gameActive) return;
+    nudgeShown = true;
+    clearInactivityTimer();
+    showSimpleOverlay(message);
 }
 
 function showStatsOverlay(title, lines, finalRun = false) {
@@ -686,7 +830,8 @@ function showStatsOverlay(title, lines, finalRun = false) {
     if (!panel) return;
     panel.innerHTML = "";
     const heading = document.createElement("h3");
-    heading.textContent = title;
+    const modeText = `Mode: ${difficulty === "easy" ? "Easy" : "Hard (Hiring Style)"}`;
+    heading.textContent = `${title} — ${modeText}`;
     panel.appendChild(heading);
     const list = document.createElement("div");
     list.className = "stats-lines";
@@ -708,6 +853,46 @@ function showStatsOverlay(title, lines, finalRun = false) {
     };
     panel.appendChild(button);
     overlay.classList.add("active");
+}
+
+function attachTooltip(wrapper, text) {
+    if (!wrapper) return;
+    const iconElement = wrapper.querySelector(".tooltip-icon") || wrapper;
+    const tooltip = document.createElement("div");
+    tooltip.className = "tooltip-box";
+    tooltip.innerHTML = text.replace(/\n/g, "<br>");
+    wrapper.appendChild(tooltip);
+
+    const hideTooltip = () => {
+        tooltip.classList.remove("show");
+    };
+
+    const toggleTooltip = (event) => {
+        event.stopPropagation();
+        const isVisible = tooltip.classList.contains("show");
+        document.querySelectorAll(".tooltip-box.show").forEach(box => {
+            if (box !== tooltip) box.classList.remove("show");
+        });
+        if (!isVisible) {
+            tooltip.classList.add("show");
+        } else {
+            hideTooltip();
+        }
+    };
+
+    iconElement.addEventListener("click", toggleTooltip);
+    iconElement.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggleTooltip(event);
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!wrapper.contains(event.target)) {
+            hideTooltip();
+        }
+    });
 }
 
 function updateLayoutState() {
@@ -761,6 +946,9 @@ function resetIdleUI(message = "Press Start Game to begin.") {
     document.getElementById("resets").textContent = resets;
     updateKeyStatus();
     updateLevelDisplay();
+    nudgeShown = false;
+    consecutiveMistakes = 0;
+    clearInactivityTimer();
     showMessage(message);
     const collapseForMobile = window.innerWidth <= MOBILE_BREAKPOINT;
     setInstructionsCollapsed(collapseForMobile);
@@ -878,6 +1066,17 @@ function directionBetween(a, b) {
     return null;
 }
 
+function pathFullyRevealed() {
+    if (!path || path.length <= 2) return true;
+    for (let i = 1; i < path.length - 1; i++) {
+        const cell = path[i];
+        if (!revealed[cell.r][cell.c]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function placeKey() {
     if (path.length <= 2) {
         keyCell = null;
@@ -954,6 +1153,7 @@ function cellClicked(r, c, cell) {
         showMessage("Press Start Game to begin!");
         return;
     }
+    resetInactivityTimer();
     moves++;
     document.getElementById("moves").textContent = moves;
 
@@ -975,10 +1175,15 @@ function cellClicked(r, c, cell) {
     if (isStartCell) return;
 
     if (!isSafe) {
+        consecutiveMistakes++;
+        if (consecutiveMistakes >= 4) {
+            triggerNudge();
+        }
         cell.classList.add("wall");
         scheduleResetAfterMistake();
         return;
     }
+    consecutiveMistakes = 0;
 
     // Correct (safe) tile
     revealed[r][c] = true;
@@ -995,13 +1200,17 @@ function cellClicked(r, c, cell) {
         cell.classList.remove("safe");
         cell.classList.add("key");
         cell.textContent = "K";
-        return;
     }
 
     if (r === end.r && c === end.c) {
         if (!hasKey) {
             showDoorOverlay("🚪 The door is locked! Grab the key first.");
             showMessage("The door is locked! Grab the key first.");
+            return;
+        }
+        if (!pathFullyRevealed()) {
+            showDoorOverlay("🧠 Remember the path! Reveal every safe tile before the door.");
+            showMessage("Reveal the entire safe path before opening the door.");
             return;
         }
         stopTimer();
@@ -1018,8 +1227,11 @@ function resetAfterMistake() {
     moves = 0;
     document.getElementById("moves").textContent = moves;
 
-    hasKey = false;
-    updateKeyStatus();
+    // Only forget the key in hard mode
+    if (difficulty === "hard") {
+        hasKey = false;
+        updateKeyStatus();
+    }
 
     logResetEvent({
         time: performance.now(),
@@ -1075,6 +1287,8 @@ function initializeGameState() {
         showMessage("Collect the key before heading to the door.");
 
         resetAnalyticsForLevel();
+        nudgeShown = false;
+        consecutiveMistakes = 0;
 
         startTimer();
 
@@ -1087,6 +1301,7 @@ function initializeGameState() {
         if (window.innerWidth <= MOBILE_BREAKPOINT) {
             setInstructionsCollapsed(true);
         }
+        resetInactivityTimer();
     } finally {
         isTransitioning = false;
     }
@@ -1094,6 +1309,7 @@ function initializeGameState() {
 
 function restartGame(forceStart = false) {
     if (isTransitioning) return;
+    clearInactivityTimer();
     pendingLevelAction = null;
     currentLevelIndex = 0;
     levelsWon = 0;
@@ -1192,6 +1408,7 @@ function levelComplete() {
     levelsWon = Math.min(levelsWon + 1, TOTAL_LEVELS);
     analytics.endedAt = performance.now();
     hideDoorOverlay();
+    clearInactivityTimer();
 
     const winSnapshot = {
         time: analytics.endedAt,
@@ -1239,6 +1456,7 @@ function computeRecruiterInsights() {
     const moves = analytics.moves || [];
     const resetsLogged = analytics.resets || [];
     if (!moves.length) {
+        const modeLabel = difficulty === "easy" ? "Easy" : "Hard (Hiring Style)";
         return {
             metrics: {
                 totalMoves: 0,
@@ -1250,16 +1468,30 @@ function computeRecruiterInsights() {
                 wallRatio: 0,
                 earlyErrors: 0,
                 lateErrors: 0,
-                errorsTrend: "flat"
+                errorsTrend: "flat",
+                moveTrend: "flat",
+                firstSegmentAvg: 0,
+                lastSegmentAvg: 0,
+                timePerMoveAvg: 0,
+                safeRatio: 0,
+                wallRatio: 0,
+                durationMs: 0
             },
             labels: {
                 explorationStrategy: "No Data",
                 learningAgility: "No Data",
                 workingMemory: "No Data",
                 timePressure: "No Data",
-                riskAppetite: "No Data"
+                riskAppetite: "No Data",
+                modeLabel
             },
-            summaryLines: ["Not enough moves were recorded to derive behavioural insights."]
+            summaryLines: [
+                {
+                    label: "Insights",
+                    value: "Not enough data",
+                    tooltip: "Play a bit longer to generate recruiter-style insights."
+                }
+            ]
         };
     }
 
@@ -1398,12 +1630,14 @@ function computeRecruiterInsights() {
         durationMs: analytics.endedAt && analytics.startedAt ? analytics.endedAt - analytics.startedAt : timeRange
     };
 
+    const modeLabel = difficulty === "easy" ? "Easy" : "Hard (Hiring Style)";
     const labels = {
         explorationStrategy,
         learningAgility,
         workingMemory,
         timePressure,
-        riskAppetite
+        riskAppetite,
+        modeLabel
     };
 
     const summaryLines = buildRecruiterSummary({ metrics, labels });
@@ -1432,32 +1666,52 @@ function computeSegmentPace(segmentMoves) {
 
 function buildRecruiterSummary(insights) {
     const { metrics, labels } = insights;
-    const lines = [];
-    const adjacentPercent = Math.round((metrics.adjacentMoveRatio || 0) * 100);
-    lines.push(`Exploration style: ${labels.explorationStrategy} (${adjacentPercent}% adjacent moves, ${metrics.repeatedErrorCount} repeated wall clicks).`);
-
+    const safePercent = formatPercent(metrics.safeRatio);
+    const wallPercent = formatPercent(metrics.wallRatio);
+    const adjacentRatio = formatDecimal(metrics.adjacentMoveRatio);
+    const avgPace = Math.round(metrics.timePerMoveAvg || 0);
+    const firstPace = Math.round(metrics.firstSegmentAvg || 0);
+    const lastPace = Math.round(metrics.lastSegmentAvg || 0);
     const totalErrors = metrics.earlyErrors + metrics.lateErrors;
-    if (totalErrors > 0) {
-        const earlyShare = Math.round((metrics.earlyErrors / totalErrors) * 100);
-        const clusteringText = metrics.earlyErrors >= metrics.lateErrors
-            ? `${earlyShare}% of errors happened early before stabilising.`
-            : `Late-run errors (${100 - earlyShare}% of them) indicate fading focus.`;
-        lines.push(`Learning curve: ${labels.learningAgility}. ${clusteringText}`);
-    } else {
-        lines.push(`Learning curve: ${labels.learningAgility}. No wall hits after the initial exploration.`);
-    }
+    const earlyShare = totalErrors ? Math.round((metrics.earlyErrors / totalErrors) * 100) : 0;
 
-    lines.push(`Working memory & recall: ${labels.workingMemory}, with ${metrics.repeatedErrorCount} repeated mistakes out of ${totalErrors || 0} errors.`);
+    return [
+        {
+            label: "Exploration",
+            value: labels.explorationStrategy,
+            tooltip: `Adjacent Move Ratio: ${adjacentRatio}\nRepeated Errors: ${metrics.repeatedErrorCount}\nIndicates: ${labels.explorationStrategy} exploration pattern.`
+        },
+        {
+            label: "Learning Curve",
+            value: labels.learningAgility,
+            tooltip: `Errors Trend: ${metrics.errorsTrend}\nMoves Trend: ${metrics.moveTrend}\nEarly Errors: ${metrics.earlyErrors} (${earlyShare}% of total)`
+        },
+        {
+            label: "Working Memory",
+            value: labels.workingMemory,
+            tooltip: `Repeated Mistakes: ${metrics.repeatedErrorCount}\nTotal Errors: ${totalErrors}\nShows how consistently safe tiles were recalled.`
+        },
+        {
+            label: "Risk Appetite",
+            value: labels.riskAppetite,
+            tooltip: `Safe Tiles: ${safePercent}\nWall Tiles: ${wallPercent}\nAttempts Used: ${metrics.attemptsUsed}`
+        },
+        {
+            label: "Time Pressure",
+            value: labels.timePressure,
+            tooltip: `Average Pace: ${avgPace}ms/move\nEarly Pace: ${firstPace}ms\nLate Pace: ${lastPace}ms`
+        }
+    ];
+}
 
-    const paceFirst = Math.round(metrics.firstSegmentAvg || 0);
-    const paceLast = Math.round(metrics.lastSegmentAvg || 0);
-    lines.push(`Time pressure: ${labels.timePressure} (avg pace ${Math.round(metrics.timePerMoveAvg || 0)}ms/move, shifted from ${paceFirst}ms early to ${paceLast}ms late).`);
+function formatPercent(value) {
+    if (value === null || value === undefined || isNaN(value)) return "n/a";
+    return `${Math.round(value * 100)}%`;
+}
 
-    const safePercent = Math.round((metrics.safeRatio || 0) * 100);
-    const wallPercent = Math.round((metrics.wallRatio || 0) * 100);
-    lines.push(`Risk appetite: ${labels.riskAppetite} (${safePercent}% safe vs ${wallPercent}% wall clicks across ${metrics.attemptsUsed} attempt${metrics.attemptsUsed === 1 ? "" : "s"}).`);
-
-    return lines;
+function formatDecimal(value) {
+    if (value === null || value === undefined || isNaN(value)) return "n/a";
+    return value.toFixed(2);
 }
 
 function showRecruiterInsights(insights) {
@@ -1468,29 +1722,44 @@ function showRecruiterInsights(insights) {
     const summaryEl = document.getElementById("recruiterSummary");
     tags.innerHTML = "";
     summaryEl.innerHTML = "";
+    // Mode shown in the heading; tags area left empty for future extensions.
 
-    const labelMap = {
-        "Exploration": insights.labels.explorationStrategy,
-        "Learning": insights.labels.learningAgility,
-        "Memory": insights.labels.workingMemory,
-        "Time Pressure": insights.labels.timePressure,
-        "Risk": insights.labels.riskAppetite
-    };
-
-    Object.entries(labelMap).forEach(([key, value]) => {
-        const span = document.createElement("span");
-        span.className = "recruiter-tag";
-        span.textContent = `${key}: ${value}`;
-        tags.appendChild(span);
-    });
-
-    insights.summaryLines.forEach(line => {
+    insights.summaryLines.forEach(item => {
         const li = document.createElement("li");
-        li.textContent = line;
+        li.className = "summary-line";
+
+        const textWrap = document.createElement("div");
+        textWrap.className = "summary-text";
+        const labelSpan = document.createElement("span");
+        labelSpan.className = "summary-label";
+        labelSpan.textContent = `${item.label}:`;
+        const valueSpan = document.createElement("span");
+        valueSpan.className = "summary-value";
+        valueSpan.textContent = item.value;
+        textWrap.appendChild(labelSpan);
+        textWrap.appendChild(valueSpan);
+
+        const iconWrapper = document.createElement("span");
+        iconWrapper.className = "tooltip-wrapper";
+        const icon = document.createElement("span");
+        icon.className = "tooltip-icon";
+        icon.textContent = "ℹ️";
+        icon.setAttribute("tabindex", "0");
+        icon.setAttribute("role", "button");
+        icon.setAttribute("aria-label", `Show details for ${item.label}`);
+        iconWrapper.appendChild(icon);
+
+        li.appendChild(textWrap);
+        li.appendChild(iconWrapper);
         summaryEl.appendChild(li);
+        attachTooltip(iconWrapper, item.tooltip);
     });
 
     overlay.classList.add("active");
+    const modeLabel = document.getElementById("recruiterMode");
+    if (modeLabel) {
+        modeLabel.textContent = ` — Mode: ${insights.labels && insights.labels.modeLabel ? insights.labels.modeLabel : (difficulty === "easy" ? "Easy" : "Hard (Hiring Style)")}`;
+    }
 }
 
 function hideRecruiterInsights(triggerAction = true) {
